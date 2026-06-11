@@ -59,7 +59,7 @@ class AttendanceServiceTest extends TestCase
         parent::tearDown();
     }
 
-    private function freezeTime(string $time): void
+    private function setNow(string $time): void
     {
         Carbon::setTestNow(CarbonImmutable::parse($time));
     }
@@ -75,7 +75,7 @@ class AttendanceServiceTest extends TestCase
 
     public function test_check_in_on_time_is_present(): void
     {
-        $this->freezeTime('2026-06-10 08:05:00');
+        $this->setNow('2026-06-10 08:05:00');
 
         $attendance = $this->service->checkIn($this->employee, $this->officePayload());
 
@@ -86,7 +86,7 @@ class AttendanceServiceTest extends TestCase
 
     public function test_check_in_after_grace_period_is_late(): void
     {
-        $this->freezeTime('2026-06-10 08:30:00');
+        $this->setNow('2026-06-10 08:30:00');
 
         $attendance = $this->service->checkIn($this->employee, $this->officePayload());
 
@@ -96,7 +96,7 @@ class AttendanceServiceTest extends TestCase
 
     public function test_check_in_outside_radius_is_rejected(): void
     {
-        $this->freezeTime('2026-06-10 08:00:00');
+        $this->setNow('2026-06-10 08:00:00');
 
         $this->expectException(ValidationException::class);
         $this->service->checkIn($this->employee, $this->officePayload([
@@ -107,7 +107,7 @@ class AttendanceServiceTest extends TestCase
 
     public function test_wfh_check_in_skips_geofence(): void
     {
-        $this->freezeTime('2026-06-10 08:00:00');
+        $this->setNow('2026-06-10 08:00:00');
 
         $attendance = $this->service->checkIn($this->employee, [
             'latitude' => -8.70,
@@ -121,7 +121,7 @@ class AttendanceServiceTest extends TestCase
 
     public function test_double_check_in_is_rejected(): void
     {
-        $this->freezeTime('2026-06-10 08:00:00');
+        $this->setNow('2026-06-10 08:00:00');
         $this->service->checkIn($this->employee, $this->officePayload());
 
         $this->expectException(ValidationException::class);
@@ -130,10 +130,10 @@ class AttendanceServiceTest extends TestCase
 
     public function test_check_out_computes_working_minutes(): void
     {
-        $this->freezeTime('2026-06-10 08:00:00');
+        $this->setNow('2026-06-10 08:00:00');
         $this->service->checkIn($this->employee, $this->officePayload());
 
-        $this->freezeTime('2026-06-10 17:00:00');
+        $this->setNow('2026-06-10 17:00:00');
         $attendance = $this->service->checkOut($this->employee, [
             'latitude' => self::OFFICE_LAT,
             'longitude' => self::OFFICE_LNG,
@@ -145,7 +145,7 @@ class AttendanceServiceTest extends TestCase
 
     public function test_check_out_without_check_in_is_rejected(): void
     {
-        $this->freezeTime('2026-06-10 17:00:00');
+        $this->setNow('2026-06-10 17:00:00');
 
         $this->expectException(ValidationException::class);
         $this->service->checkOut($this->employee, []);
@@ -153,10 +153,10 @@ class AttendanceServiceTest extends TestCase
 
     public function test_double_check_out_is_rejected(): void
     {
-        $this->freezeTime('2026-06-10 08:00:00');
+        $this->setNow('2026-06-10 08:00:00');
         $this->service->checkIn($this->employee, $this->officePayload());
 
-        $this->freezeTime('2026-06-10 17:00:00');
+        $this->setNow('2026-06-10 17:00:00');
         $this->service->checkOut($this->employee, []);
 
         $this->expectException(ValidationException::class);
@@ -165,7 +165,7 @@ class AttendanceServiceTest extends TestCase
 
     public function test_check_in_without_shift_is_never_late(): void
     {
-        $this->freezeTime('2026-06-10 10:00:00');
+        $this->setNow('2026-06-10 10:00:00');
         $employee = EmployeeProfile::factory()->for($this->company)->create(['shift_id' => null]);
 
         $attendance = $this->service->checkIn($employee, $this->officePayload());
@@ -176,7 +176,7 @@ class AttendanceServiceTest extends TestCase
 
     public function test_check_in_fails_when_no_location_configured(): void
     {
-        $this->freezeTime('2026-06-10 08:00:00');
+        $this->setNow('2026-06-10 08:00:00');
         $company = Company::factory()->create();
         $employee = EmployeeProfile::factory()->for($company)->create();
 
