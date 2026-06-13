@@ -5,6 +5,7 @@ namespace Tests\Unit\Services;
 use App\Enums\AttendanceMode;
 use App\Enums\AttendanceStatus;
 use App\Models\AttendanceLocation;
+use App\Models\AttendanceRequest;
 use App\Models\Company;
 use App\Models\EmployeeProfile;
 use App\Models\Shift;
@@ -105,9 +106,16 @@ class AttendanceServiceTest extends TestCase
         ]));
     }
 
-    public function test_wfh_check_in_skips_geofence(): void
+    public function test_approved_wfh_check_in_skips_geofence(): void
     {
         $this->setNow('2026-06-10 08:00:00');
+
+        AttendanceRequest::factory()->approved()->create([
+            'company_id' => $this->company->id,
+            'employee_id' => $this->employee->id,
+            'attendance_date' => '2026-06-10',
+            'attendance_mode' => AttendanceMode::Wfh,
+        ]);
 
         $attendance = $this->service->checkIn($this->employee, [
             'latitude' => -8.70,
@@ -117,6 +125,19 @@ class AttendanceServiceTest extends TestCase
 
         $this->assertSame(AttendanceMode::Wfh, $attendance->attendance_mode);
         $this->assertNull($attendance->attendance_location_id);
+    }
+
+    public function test_unapproved_wfh_is_downgraded_to_office(): void
+    {
+        $this->setNow('2026-06-10 08:00:00');
+
+        // No approved request -> WFH downgraded to office -> outside radius rejected.
+        $this->expectException(ValidationException::class);
+        $this->service->checkIn($this->employee, [
+            'latitude' => -8.70,
+            'longitude' => 115.30,
+            'attendance_mode' => AttendanceMode::Wfh->value,
+        ]);
     }
 
     public function test_double_check_in_is_rejected(): void

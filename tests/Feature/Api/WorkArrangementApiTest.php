@@ -47,12 +47,21 @@ class WorkArrangementApiTest extends TestCase
         $this->hrUser->assignRole('HR');
     }
 
-    public function test_wfh_check_in_skips_geofence_and_records_metadata(): void
+    public function test_approved_wfh_check_in_skips_geofence_and_records_metadata(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-06-12 08:05:00'));
+
+        // An approved WFH request must exist for the day to bypass the office geofence.
+        AttendanceRequest::factory()->approved()->create([
+            'company_id' => $this->company->id,
+            'employee_id' => $this->employee->id,
+            'attendance_date' => '2026-06-12',
+            'attendance_mode' => 'wfh',
+        ]);
+
         Sanctum::actingAs($this->employee->user);
 
-        // Coordinates far from any office — would fail in office mode.
+        // Coordinates far from any office — allowed because WFH is approved.
         $response = $this->postJson('/api/v1/attendance/check-in', [
             'latitude' => -6.2000,
             'longitude' => 106.8166,
@@ -67,6 +76,33 @@ class WorkArrangementApiTest extends TestCase
             'work_location' => 'Home',
         ]);
         $this->assertNotNull($this->employee->attendances()->first()->check_in_ip_address);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_unapproved_wfh_is_downgraded_to_office_and_geofenced(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-06-12 08:05:00'));
+        Sanctum::actingAs($this->employee->user);
+
+        // WFH requested but no approved request -> treated as office -> outside radius -> rejected.
+        $this->postJson('/api/v1/attendance/check-in', [
+            'latitude' => -6.2000,
+            'longitude' => 106.8166,
+            'attendance_mode' => 'wfh',
+        ])->assertUnprocessable()->assertJsonValidationErrorFor('location');
+
+        // Inside the office radius, an unapproved WFH check-in is accepted but recorded as office.
+        $this->postJson('/api/v1/attendance/check-in', [
+            'latitude' => -8.6705,
+            'longitude' => 115.2126,
+            'attendance_mode' => 'wfh',
+        ])->assertCreated()->assertJsonPath('data.attendance_status', 'present');
+
+        $this->assertDatabaseHas('attendances', [
+            'employee_id' => $this->employee->id,
+            'attendance_mode' => 'office',
+        ]);
 
         Carbon::setTestNow();
     }

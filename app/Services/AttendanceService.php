@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Enums\AttendanceMode;
 use App\Enums\AttendanceStatus;
+use App\Enums\RequestStatus;
 use App\Models\Attendance;
 use App\Models\AttendanceLocation;
+use App\Models\AttendanceRequest;
 use App\Models\EmployeeProfile;
 use App\Models\Shift;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
@@ -51,9 +53,12 @@ class AttendanceService
             $latitude = (float) $data['latitude'];
             $longitude = (float) $data['longitude'];
 
-            // Mode-aware geofence: office enforces the radius; WFH and business trip skip it.
-            $mode = AttendanceMode::tryFrom($data['attendance_mode'] ?? AttendanceMode::Office->value)
+            // Mode-aware geofence: WFH / business trip skip the radius ONLY when backed by an
+            // approved attendance request for the day; otherwise we fall back to office + geofence.
+            $requestedMode = AttendanceMode::tryFrom($data['attendance_mode'] ?? AttendanceMode::Office->value)
                 ?? AttendanceMode::Office;
+
+            $mode = $this->resolveEffectiveMode($employee, $date, $requestedMode);
 
             $location = $mode->requiresOfficeGeofence()
                 ? $this->requireOfficeWithinRadius($employee, $latitude, $longitude)
@@ -130,6 +135,27 @@ class AttendanceService
 
             return $attendance->refresh();
         });
+    }
+
+    /**
+     * Determine the mode actually applied on check-in.
+     *
+     * WFH / business-trip is honoured only when an approved attendance request exists for the
+     * same employee, date, and mode. Otherwise the check-in is downgraded to office (geofenced).
+     */
+    private function resolveEffectiveMode(EmployeeProfile $employee, string $date, AttendanceMode $requestedMode): AttendanceMode
+    {
+        if ($requestedMode->requiresOfficeGeofence()) {
+            return AttendanceMode::Office;
+        }
+
+        $hasApproval = AttendanceRequest::where('employee_id', $employee->id)
+            ->whereDate('attendance_date', $date)
+            ->where('attendance_mode', $requestedMode)
+            ->where('status', RequestStatus::Approved)
+            ->exists();
+
+        return $hasApproval ? $requestedMode : AttendanceMode::Office;
     }
 
     /**

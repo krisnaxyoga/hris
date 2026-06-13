@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\AttendanceController;
+use App\Http\Controllers\Web\AttendanceLocationController;
 use App\Http\Controllers\Web\AttendanceRequestController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\CompanyController;
@@ -40,6 +41,7 @@ Route::middleware('auth')->group(function () {
     Route::post('attendance/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in');
     Route::post('attendance/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out');
     Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::resource('attendance-locations', AttendanceLocationController::class)->except('show');
 
     // Leave management
     Route::get('leave/me', [LeaveController::class, 'me'])->name('leave.me');

@@ -91,6 +91,9 @@
                     @can('viewAny', App\Models\Attendance::class)
                         <li><a href="{{ route('attendance.index') }}" @class(['active' => request()->routeIs('attendance.index')])>Attendance Log</a></li>
                     @endcan
+                    @can('viewAny', App\Models\AttendanceLocation::class)
+                        <li><a href="{{ route('attendance-locations.index') }}" @class(['active' => request()->routeIs('attendance-locations.*')])>Attendance Zones</a></li>
+                    @endcan
                     <li class="menu-title">Leave</li>
                     <li><a href="{{ route('leave.me') }}" @class(['active' => request()->routeIs('leave.me')])>My Leave</a></li>
                     <li><a href="{{ route('leave.approvals') }}" @class(['active' => request()->routeIs('leave.approvals')])>Leave Approvals</a></li>
