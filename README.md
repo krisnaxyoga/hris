@@ -12,6 +12,10 @@
   <img src="https://img.shields.io/badge/license-MIT-22C55E?style=flat" alt="License MIT">
 </p>
 
+<p align="center">
+  <b>🇮🇩 Bahasa Indonesia</b> · <a href="README.en.md">🇬🇧 English</a>
+</p>
+
 Aplikasi **HRIS (Human Resource Information System)** berbasis **Laravel 13** untuk mengelola data karyawan, absensi berbasis GPS/geofence, pengajuan cuti dengan alur persetujuan bertingkat, pengaturan kerja (WFH & perjalanan dinas), timesheet, dan log aktivitas harian — dilengkapi antarmuka web (Blade + Tailwind/DaisyUI) sekaligus **REST API** (Sanctum) untuk integrasi mobile/eksternal.
 
 ---
